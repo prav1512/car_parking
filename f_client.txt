@@ -1,0 +1,25 @@
+void f_client(SOCKET clientSocket) {
+    while (1) {
+        string s; int identity;
+        recieve(clientSocket, s);
+        identity = s[0]-'0';
+        if (s == "cross") break;
+        if (identity == 1) {
+            f_owner(clientSocket);
+        }
+        else if (identity == 2) {
+            f_main_gate(clientSocket);
+        }
+        else if (identity == 3) {
+            f_entry_gate(clientSocket);
+        }
+        else if (identity == 4) {
+            f_exit_gate(clientSocket);
+        }
+        else if (identity == 5) {
+            f_section_incharge(clientSocket);
+        }
+
+
+    }
+}

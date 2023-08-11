@@ -1,0 +1,846 @@
+#include <iostream>
+# include<windows.h>
+# include<thread>
+# include<queue>
+# include<vector>
+# include<map>
+using namespace std;
+#pragma comment(lib, "ws2_32.lib")
+SOCKET serverSocket;
+sockaddr_in serverAddr;
+void f_client(SOCKET);
+string owner_id, owner_pass;
+void recieve(SOCKET, int&);
+void f_owner(SOCKET);
+void f_main_gate(SOCKET);
+void f_entry_gate(SOCKET);
+void f_exit_gate(SOCKET);
+void f_section_incharge(SOCKET);
+void recieve(SOCKET, string&);
+vector<map<string, string>> section_incharge_id_pass(4);
+string two_wheeler_id, two_wheeler_pass, four_wheeler_id, four_wheeler_pass, ten_wheeler_id, ten_wheeler_pass;
+string main_gate_entry_id, main_gate_entry_pass, main_gate_exit_id, main_gate_exit_pass;
+queue<pair<int, string>> entry_register_main_gate, exit_register_main_gate;
+vector<string> cash_payment_vec;
+vector<map<pair<int, string>, string>> entry_gate_incharge(4);
+vector<map<pair<int, string>, string>> exit_gate_incharge(4);
+void send1(SOCKET, string);
+void send1(SOCKET clientSocket, string message) {
+    send(clientSocket, message.c_str(), message.length(), 0);
+}
+void recieve(SOCKET clientSocket, string& s1) {
+
+    char buffer[1024];
+    int bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
+    string s = buffer;
+    s1 = s;
+
+
+}
+class owner {
+private:
+    string id, pass;
+    SOCKET clientSocket;
+public:
+    owner(string& id1, string& pass1, SOCKET clientSocket1) {
+        this->id = id1;
+        this->pass == pass1;
+        this->clientSocket = clientSocket1;
+    }
+    void f_handle_owner_query() {
+        //   add section incharge 
+        /*
+        (1)   two wheeler
+        (2)   four wheeler
+        (3)   more than ten wheeler
+        */
+
+        while (1) {
+            string s;
+            recieve(clientSocket, s);
+            if (s == "cross") break;
+            int x;
+            x = s[0];
+            if (x == 1) {
+                string s1;
+                recieve(clientSocket, s1);
+                string id1, pass1;
+                int i = 0;
+                while (s1[i] != ',') {
+                    id1.push_back(s1[i]);
+                    i++;
+                }
+                i++;
+                while (i < s1.size()) {
+                    pass1.push_back(s1[i]);
+                    i++;
+                }
+
+                two_wheeler_id = id1;
+                two_wheeler_pass = pass1;
+                section_incharge_id_pass[1][id1] = pass1;
+
+            }
+            else if (x == 2) {
+                string s1;
+                recieve(clientSocket, s1);
+                string id1, pass1;
+                int i = 0;
+                while (s1[i] != ',') {
+                    id1.push_back(s1[i]);
+                    i++;
+                }
+                i++;
+                while (i < s1.size()) {
+                    pass1.push_back(s1[i]);
+                    i++;
+                }
+                four_wheeler_id = id1;
+                four_wheeler_pass = pass1;
+                section_incharge_id_pass[2][id1] = pass1;
+            }
+            else if (x == 3) {
+                string s1;
+                recieve(clientSocket, s1);
+                string id1, pass1;
+                int i = 0;
+                while (s1[i] != ',') {
+                    id1.push_back(s1[i]);
+                    i++;
+                }
+                i++;
+                while (i < s1.size()) {
+                    pass1.push_back(s1[i]);
+                    i++;
+                }
+                ten_wheeler_id = id1;
+                ten_wheeler_pass = pass1;
+                section_incharge_id_pass[3][id1] = pass1;
+            }
+            else if (x == 4) {
+                string s1;
+                recieve(clientSocket, s1);
+                string id1, pass1;
+                int i = 0;
+                while (s1[i] != ',') {
+                    id1.push_back(s1[i]);
+                    i++;
+                }
+                i++;
+                while (i < s1.size()) {
+                    pass1.push_back(s1[i]);
+                    i++;
+                }
+                main_gate_entry_id = id1;
+                main_gate_entry_pass = pass1;
+
+
+
+            }
+            else if (x == 5) {
+                string s1;
+                recieve(clientSocket, s1);
+                string id1, pass1;
+                int i = 0;
+                while (s1[i] != ',') {
+                    id1.push_back(s1[i]);
+                    i++;
+                }
+                i++;
+                while (i < s1.size()) {
+                    pass1.push_back(s1[i]);
+                    i++;
+                }
+                main_gate_exit_id = id1;
+                main_gate_exit_pass = pass1;
+            }
+
+
+        }
+
+
+
+    }
+
+};
+
+void f_owner(SOCKET clientSocket) {
+    while (1) {
+        string s;
+        string id, pass;
+        recieve(clientSocket, s);
+        if (s == "cross") {
+            break;
+        }
+        int i = 0;
+        while (s[i] != ',') {
+            id.push_back(s[i]);
+            i++;
+        }
+        i++;
+        while (i < s.size()) {
+            pass.push_back(s[i]);
+            i++;
+        }
+
+
+        if (owner_id == id && owner_pass == pass) {
+            owner   obj_owner(id, pass, clientSocket);
+            obj_owner.f_handle_owner_query();
+        }
+        else {
+            string message = "error";
+            send(clientSocket, message.c_str(), message.length(), 0);
+
+        }
+
+
+    }
+}
+
+
+class main_gate {
+private:
+    string id, pass;
+    SOCKET clientSocket;
+public:
+    main_gate(string& s1, string& s2, SOCKET clientSocket1) {
+        id = s1; pass = s2;
+        this->clientSocket = clientSocket1;
+
+    }
+    void f_main_gate_entry() {
+        while (1) {
+            string s;
+            recieve(clientSocket, s);
+            if (s == "cross") break;
+            int n;
+            string van_no;
+
+            entry_register_main_gate.push({ n,van_no });
+
+        }
+
+
+    }
+    void f_main_gate_exit() {
+        while (1) {
+            string s;
+            recieve(clientSocket, s);
+            if (s == "cross") break;
+            int n;
+            string van_no;
+            van_no = s;
+
+            exit_register_main_gate.push({ n,van_no });
+        }
+    }
+
+};
+
+
+
+void f_main_gate(SOCKET clientSocket) {
+    while (1) {
+        string s;
+        string id, pass, identity;
+        recieve(clientSocket, s);
+        int i = 0;
+        while (s[i] != ',') {
+            identity.push_back(s[i]);
+            i++;
+        }
+        i++;
+        while (s[i] != ',') {
+            id.push_back(s[i]);
+            i++;
+        }
+        i++;
+        while (i < s.size()) {
+            pass.push_back(s[i]);
+            i++;
+        }
+        if (s == "cross") break;
+
+        if (identity == "entry") {
+            main_gate obj(id, pass, clientSocket);
+            obj.f_main_gate_entry();
+
+        }
+        else {
+            main_gate   obj(id, pass, clientSocket);
+            obj.f_main_gate_exit();
+
+        }
+
+    }
+}
+////  entry  gate implementation 
+typedef priority_queue <pair<int, pair<int, int>>, vector<pair<int, pair<int, int>>>, greater<pair<int, pair<int, int>>>> mn_pq;
+
+vector<mn_pq> vec2;
+map<string, pair<int, int>> mp2;
+
+
+class twowheeler_stand {
+private:
+    int gate_no;
+    SOCKET clientSocket;
+
+public:
+    twowheeler_stand(int gate, SOCKET clientSocket1) {
+        gate_no = gate;
+        this->clientSocket = clientSocket1;
+    }
+    static void initialise() {
+        mn_pq   q;
+        vec2.resize(5, q);
+        for (int j = 1; j <= 100; j++) {
+            for (int k = 1; k <= 100; k++) {
+                if (j <= 25)
+                    vec2[1].push({ abs(j - 20) + abs(k),{j,k} });
+                else if (j <= 50) {
+                    vec2[2].push({ abs(j - 40) + abs(k),{j,k} });
+                }
+                else if (j <= 75) {
+                    vec2[3].push({ abs(j - 60) + abs(k),{j,k} });
+                }
+                else {
+                    vec2[4].push({ abs(j - 80) + abs(k),{j,k} });
+                }
+            }
+        }
+    }
+    void f_entry_gate_request(string& van_no, int& r, int& c) {
+        if (vec2[gate_no].size() == 0) {
+            cout << "no_space_available" << endl;
+            send1(clientSocket, "no space available");
+            return;
+        }
+        r = vec2[gate_no].top().second.first;
+        c = vec2[gate_no].top().second.second;
+        mp2[van_no] = { r,c };
+        vec2[gate_no].pop();
+    }
+    void f_exit_gate_request(string& van_no) {
+        vec2[gate_no].push({ abs(mp2[van_no].first - (gate_no * 20)) + abs(mp2[van_no].second),{mp2[van_no].first,mp2[van_no].second} });
+        mp2.erase(van_no);
+    }
+
+};
+vector<mn_pq> vec4;
+map<string, pair<int, int>> mp4;
+class fourwheeler_stand {
+private:
+
+    int gate_no;
+    SOCKET clientSocket;
+    //static int    arr[100][100];
+
+public:
+    fourwheeler_stand(int no, SOCKET clientSocket1) {
+        gate_no = no;
+        this->clientSocket = clientSocket1;
+    }
+    static void initialise() {
+        mn_pq q;
+        vec4.resize(5, q);
+        for (int j = 1; j <= 100; j++) {
+            for (int k = 1; k <= 100; k++) {
+                if (j <= 25)
+                    vec4[1].push({ abs(j - 20) + abs(k),{j,k} });
+                else if (j <= 50) {
+                    vec4[2].push({ abs(j - 40) + abs(k),{j,k} });
+                }
+                else if (j <= 75) {
+                    vec4[3].push({ abs(j - 60) + abs(k),{j,k} });
+                }
+                else {
+                    vec4[4].push({ abs(j - 80) + abs(k),{j,k} });
+                }
+            }
+        }
+
+    }
+    void f_entry_gate_request(string& van_no, int& r, int& c) {
+        if (vec4[gate_no].size() == 0) {
+            cout << "no_space_available" << endl;
+            send1(clientSocket, "no space available");
+            return;
+        }
+        r = vec4[gate_no].top().second.first;
+        c = vec4[gate_no].top().second.second;
+        mp4[van_no] = { r,c };
+        vec4[gate_no].pop();
+    }
+    void f_exit_gate_request(string& van_no) {
+        vec4[gate_no].push({ abs(mp4[van_no].first - (gate_no * 20)) + abs(mp4[van_no].second),{mp4[van_no].first,mp4[van_no].second} });
+        mp4.erase(van_no);
+    }
+
+};
+vector<mn_pq> vec10;
+///static int    arr[100][100];
+map<string, pair<int, int>> mp10;
+class tenwheeler_stand {
+private:
+    int gate_no;
+    SOCKET clientSocket;
+
+public:
+    tenwheeler_stand(int gate, SOCKET clientSocket1) {
+        gate_no = gate;
+        this->clientSocket = clientSocket1;
+    }
+    static void initialise() {
+        mn_pq q;
+        vec10.resize(5, q);
+
+        for (int j = 1; j <= 100; j++) {
+            for (int k = 1; k <= 100; k++) {
+                if (j <= 25)
+                    vec10[1].push({ abs(j - 20) + abs(k),{j,k} });
+                else if (j <= 50) {
+                    vec10[2].push({ abs(j - 40) + abs(k),{j,k} });
+                }
+                else if (j <= 75) {
+                    vec10[3].push({ abs(j - 60) + abs(k),{j,k} });
+                }
+                else {
+                    vec10[4].push({ abs(j - 80) + abs(k),{j,k} });
+                }
+            }
+        }
+
+
+    }
+    void f_entry_gate_request(string& van_no, int& r, int& c) {
+        if (vec10[gate_no].size() == 0) {
+            cout << "no_space_available" << endl;
+            send1(clientSocket, "no space available");
+            return;
+        }
+        r = vec10[gate_no].top().second.first;
+        c = vec10[gate_no].top().second.second;
+        mp10[van_no] = { r,c };
+        vec10[gate_no].pop();
+    }
+
+    void f_exit_gate_request(string& van_no) {
+        vec10[gate_no].push({ abs(mp10[van_no].first - (gate_no * 20)) + abs(mp10[van_no].second),{mp10[van_no].first,mp10[van_no].second} });
+        mp10.erase(van_no);
+    }
+
+};
+
+
+
+
+class entry_gate {
+private:
+    int section_no; string id, pass; int gate_no;
+    SOCKET clientSocket;
+public:
+    entry_gate(int no, string& id1, string& pass1, int& gate, SOCKET clientSocket1) {
+        section_no = no;
+        id = id1;
+        pass = pass1;
+        gate_no = gate;
+        this->clientSocket = clientSocket1;
+    }
+    void f_handle_entry_gate() {
+        //  implement it 
+        while (1) {
+            string van_no;
+            cin >> van_no;
+            int r = -1, c = -1;
+            if (section_no == 1) {
+                twowheeler_stand obj(gate_no,clientSocket);
+                obj.f_entry_gate_request(van_no, r, c);
+            }
+            else if (section_no == 2) {
+                fourwheeler_stand  obj(gate_no,clientSocket);
+                obj.f_entry_gate_request(van_no, r, c);
+            }
+            else {
+                tenwheeler_stand   obj(gate_no,clientSocket);
+                obj.f_entry_gate_request(van_no, r, c);
+            }
+
+
+        }
+    }
+};
+
+void f_entry_gate(SOCKET clientSocket) {
+    while (1) {
+        int section_no;
+        string id, pass; int gate_no;
+        string s;
+        recieve(clientSocket, s);
+        if (s == "cross") break;
+        section_no = s[0] - '0';
+        gate_no = s[2] - '0';
+        int i = 4;
+        while (s[i] != ',') {
+            id.push_back(s[i]);
+            i++;
+        }
+        i++;
+        while (i < s.size()) {
+            pass.push_back(s[i]);
+            i++;
+        }
+        if (section_no < 1 && section_no>3) {
+            cout << "invalid data enter valid data" << endl;
+        }
+        else if (entry_gate_incharge[section_no].count({ gate_no,id }) && entry_gate_incharge[section_no][{gate_no, id}] == pass) {
+            // entry_gate_incharge
+            entry_gate obj1(section_no, id, pass, gate_no, clientSocket);
+            obj1.f_handle_entry_gate();
+
+        }
+        else {
+            cout << "invalid data enter valid data" << endl;
+        }
+
+
+    }
+}
+
+///  exit gate implementation 
+
+class payment {
+protected:
+    string payer_name, van_no; int  section_no;
+    int amount_paid;
+    string payment_type;
+public:
+    payment(string& name, string& no, int& sec_no, int& amount) {
+        payer_name = name;
+        van_no = no;
+        section_no = sec_no;
+        amount_paid = amount;
+    }
+    virtual void set_payment_type(string& type) = 0;
+
+
+
+};
+class cash_payment :public payment {
+private:
+    int exit_gate_no;
+    string cash_taker_id;
+
+public:
+    cash_payment(int& section_no, int& exit_gate_no, string& cash_taker_id, string& payer_name, string& van_no, int& amt)
+        : payment(payer_name, van_no, section_no, amt) {
+
+        this->exit_gate_no = exit_gate_no;
+        this->cash_taker_id = cash_taker_id;
+    }
+    void set_payment_type(string& type) override {
+        this->payment_type = type;
+    }
+    void store(cash_payment& obj) {
+        string str = obj.payer_name;
+        str += ",";
+        str += obj.van_no;
+        str += ",";
+        str += obj.amount_paid;
+        str += ",";
+        cash_payment_vec.push_back(str);
+    }
+
+
+
+
+
+};
+// class  upi_payment:public payment{
+
+// };
+
+
+////// payment class implementation ends here 
+
+
+
+
+class exit_gate {
+private:
+    int section_no; string id, pass; int gate_no;
+    SOCKET clientSocket;
+public:
+    exit_gate(int& no, string& id1, string& pass1, int& gate, SOCKET clientSocket1) {
+        section_no = no;
+        id = id1;
+        pass = pass1;
+        gate_no = gate;
+        this->clientSocket = clientSocket1;
+    }
+    void f_handle_exit_gate() {
+        // implement it 
+        while (1) {
+            string s;
+            recieve(clientSocket, s);
+            string type = "cash";
+            if (s == "cross") break;
+
+            string  payer_name, van_no; int  amt = 0;
+            int i = 0;
+            while (s[i] != ',') {
+                amt *= 10;
+                amt += int(s[i] - '0');
+                i++;
+            }
+            i++;
+            while (s[i] != ',') {
+                van_no.push_back(s[i]);
+                i++;
+            }
+            i++;
+            while (i < s.size()) {
+                payer_name.push_back(s[i]);
+                i++;
+            }
+
+            cash_payment obj1(section_no, gate_no, id, payer_name, van_no, amt);
+            obj1.store(obj1);
+            if (section_no == 1) {
+
+                twowheeler_stand obj(gate_no, clientSocket);
+                obj.f_exit_gate_request(van_no);
+            }
+            else if (section_no == 2) {
+                fourwheeler_stand obj(gate_no, clientSocket);
+                obj.f_exit_gate_request(van_no);
+            }
+            else {
+                tenwheeler_stand obj(gate_no, clientSocket);
+                obj.f_exit_gate_request(van_no);
+            }
+
+        }
+
+
+    }
+
+};
+
+
+void f_exit_gate(SOCKET clientSocket) {
+    while (1) {
+        string s;
+        string id, pass;
+        int section_no;
+        int gate_no; 
+        recieve(clientSocket, s);
+        if (s == "cross") break;
+        section_no = s[0] - '0';
+        gate_no = s[2] - '0';
+        int i = 4;
+        while (s[i] != ',') {
+            id.push_back(s[i]);
+            i++;
+        }
+        i++;
+        while (i < s.size()) {
+            pass.push_back(s[i]);
+            i++;
+        }
+
+        if (section_no < 1 && section_no>3) {
+            cout << "invalid data enter valid data" << endl;
+        }
+        else if (exit_gate_incharge[section_no].count({ gate_no,id }) && exit_gate_incharge[section_no][{gate_no, id}] == pass) {
+            // exit_gate_incharge
+            exit_gate obj1(section_no, id, pass, gate_no, clientSocket);
+            obj1.f_handle_exit_gate();
+
+        }
+        else {
+            cout << "invalid data enter valid data" << endl;
+        }
+
+    }
+}
+
+
+//vector<map<string, string>> section_incharge_id_pass(4);
+
+
+class section_incharge {
+private:
+    int section_no;
+    string id, pass;
+    SOCKET clientSocket;
+public:
+    section_incharge(int n, string s1, string s2, SOCKET clientSocket1) {
+        section_no = n;
+        id = s1; pass = s2;
+        this->clientSocket = clientSocket1;
+    }
+    void f_add_entry_incharge() {
+        int gate_no; string id, pass;
+        string s;
+        recieve(clientSocket, s);
+        gate_no = s[0] - '0';
+        int i = 2;
+        while (s[i] != ',') {
+            id.push_back(s[i]);
+            i++;
+        }
+        i++;
+        while (i < s.size()) {
+            pass.push_back(s[i]);
+            i++;
+        }
+        entry_gate_incharge[section_no][{gate_no, id}] = pass;
+    }
+    void f_add_exit_incharge() {
+        int gate_no; string id, pass;
+        string s;
+        recieve(clientSocket, s);
+        gate_no = s[0];
+        int i = 2;
+        while (s[i] != ',') {
+            id.push_back(s[i]);
+            i++;
+        }
+        i++;
+        while (i < s.size()) {
+            pass.push_back(s[i]);
+            i++;
+        }
+        exit_gate_incharge[section_no][{gate_no, id}] = pass;
+    }
+    void f_handle_section_incharge() {
+        // add entry  gate incharge 
+        // add exit gate incharge
+        while (1) {
+            cout << "Enter 1 for entry and 2 for exit " << endl;
+            int x;
+            string s;
+            recieve(clientSocket, s);
+            x = s[0] - '0';
+            if (s == "cross") break;
+            if (x == 1) {
+                f_add_entry_incharge();
+            }
+            else if (x == 2) {
+                f_add_exit_incharge();
+            }
+            else {
+                cout << "enter valid key" << endl;
+            }
+        }
+
+
+    }
+
+
+};
+void f_section_incharge(SOCKET clientSocket) {
+    while (1) {
+        string s;
+        string id, pass;
+        int section_no;
+        recieve(clientSocket, s);
+        if (s == "cross") break;
+        section_no = s[0] - '0';
+        int i = 2;
+        while (s[i] != ',') {
+            id.push_back(s[i]);
+            i++;
+        }
+        i++;
+        while (i < s.size()) {
+            pass.push_back(s[i]);
+            i++;
+
+        }
+        if (section_incharge_id_pass[section_no].count(id) && section_incharge_id_pass[section_no][id] == pass) {
+            section_incharge obj1(section_no, id, pass, clientSocket);
+            obj1.f_handle_section_incharge();
+        }
+        else {
+            cout << "invalid id pass" << endl;
+        }
+
+
+    }
+}
+void f_client(SOCKET clientSocket) {
+    while (1) {
+        string s; int identity;
+        recieve(clientSocket, s);
+        identity = s[0]-'0';
+        if (s == "cross") break;
+        if (identity == 1) {
+            f_owner(clientSocket);
+        }
+        else if (identity == 2) {
+            f_main_gate(clientSocket);
+        }
+        else if (identity == 3) {
+            f_entry_gate(clientSocket);
+        }
+        else if (identity == 4) {
+            f_exit_gate(clientSocket);
+        }
+        else if (identity == 5) {
+            f_section_incharge(clientSocket);
+        }
+
+
+    }
+}
+int main()
+{
+    cin >> owner_id >> owner_pass;
+
+
+    twowheeler_stand::initialise();
+    fourwheeler_stand::initialise();
+    tenwheeler_stand::initialise();
+
+
+    WSADATA wsaData;
+    SOCKET clientSocket;
+    sockaddr_in clientAdrr;
+    int clientAddrSize = sizeof(clientAdrr);
+    // initialising windows socket if failed returning 1
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)   return 1;
+    //  CREATING THE SOCKET 
+    serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSocket == INVALID_SOCKET) {
+        WSACleanup();
+        return 1;
+    }
+    // binding the socket to aspecific ip adress and port number 
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    serverAddr.sin_port = htons(12345);
+    //  make the socket to listen connection 
+    if (listen(serverSocket, SOMAXCONN) == SOCKET_ERROR) {
+        closesocket(serverSocket);
+        WSACleanup();
+        return 1;
+    }
+    while (true) {
+        clientSocket = accept(serverSocket, (sockaddr*)&clientAdrr, &clientAddrSize);
+        if (clientSocket == INVALID_SOCKET) {
+            closesocket(serverSocket);
+            WSACleanup();
+            return  1;
+        }
+        cout << "connected to client" << endl;
+        thread clientThread(f_client, clientSocket);
+        clientThread.detach();
+    }
+    closesocket(serverSocket);
+    WSACleanup();
+
+    return 0;
+}
